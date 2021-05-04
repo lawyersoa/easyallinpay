@@ -23,6 +23,11 @@ return [
         ],
         'notify_uri' => 'http://test-pay.7dingdong.com/notify/tonglian/index?',
         'sign_method' => 'SHA1WithRSA',
-        'version' => '2.0'
+        'version' => '2.0',
+        'timeout' => 60
+    ],
+    'log' => [
+        'request' => __DIR__ . '/log/REQUEST.log',
+        'notify' => __DIR__ . '/log/NOTIFY.log',
     ],
 ];

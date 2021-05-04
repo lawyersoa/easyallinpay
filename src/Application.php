@@ -11,11 +11,13 @@
 
 namespace EasyAllInPay;
 
-use Overtrue\Http\Support\Collection;
+use EasyAllInPay\Kernel\Exceptions\RuntimeException;
+use Monolog\Formatter\LineFormatter;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Pimple\Container;
+use Doctrine\Common\Collections\ArrayCollection;
 
-/**
- */
 class Application extends Container
 {
     /**
@@ -37,18 +39,21 @@ class Application extends Container
      *
      * @param array $config
      * @param array $values
+     * @throws RuntimeException
      */
     public function __construct($config = [], array $values = [])
     {
         parent::__construct($values);
 
         $this['config'] = function () use ($config) {
-            return new Collection($config);
+            return new ArrayCollection($config);
         };
 
         foreach ($this->providers as $provider) {
             $this->register(new $provider());
         }
+
+        $this->setLogger();
     }
 
     /**
@@ -60,4 +65,30 @@ class Application extends Container
     {
         return $this[$name];
     }
+
+    /**
+     * @param LineFormatter|null $lineFormatter
+     * @param array $handlers
+     * @throws RuntimeException
+     */
+    public function setLogger(LineFormatter $lineFormatter = null, array $handlers = [])
+    {
+        $requestLogPath = $this['config']['log']['request'] ?? '';
+        if(!$requestLogPath){
+            throw new RuntimeException('Request log file missed.');
+        }
+        $formatter = $lineFormatter && ($lineFormatter instanceof LineFormatter) ? $lineFormatter : new LineFormatter(null, null, false, true);
+        if(!$handlers){
+            $streamHandler = new StreamHandler($requestLogPath, Logger::INFO, true, 0777);
+            $handlers = [$streamHandler];
+        }
+        foreach($handlers as $handler){
+            if(!($handler instanceof StreamHandler)){
+                throw new RuntimeException('Handler must be an instance of StreamHandler.');
+            }
+            $handler->setFormatter($formatter);
+            $this['logger']->pushHandler($handler);
+        }
+    }
+
 }

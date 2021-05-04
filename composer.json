@@ -26,7 +26,8 @@
         "doctrine/annotations": "^1.12",
         "symfony/serializer": "^5.2",
         "symfony/property-access": "^5.2",
-        "ramsey/uuid": "^4.1"
+        "ramsey/uuid": "^4.1",
+        "doctrine/collections": "^1.6"
 	},
 	"require-dev": {
         "mockery/mockery": "^1.0",

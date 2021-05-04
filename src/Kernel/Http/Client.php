@@ -19,10 +19,13 @@ use EasyAllInPay\Kernel\Properties\RequestBasic;
 use EasyAllInPay\Kernel\Properties\RequestReq;
 use EasyAllInPay\Kernel\Properties\ResponseSignedValue\ResponseSignedValue;
 use GuzzleHttp\Client as BaseClient;
+use GuzzleHttp\RequestOptions;
+use GuzzleHttp\TransferStats;
 use EasyAllInPay\Application;
 use GuzzleHttp\Exception\GuzzleException;
 use EasyAllInPay\Kernel\Exceptions\InvalidArgumentException;
 use ReflectionException;
+use function EasyAllInPay\dump;
 
 class Client extends BaseClient
 {
@@ -95,16 +98,18 @@ class Client extends BaseClient
         $param['sign'] = $this->app['encryptor']->sign($param['req'], $param['timestamp']);
 
         //========== HTTP重试请求机制 ==========
-        $retString = false;
+        $oriRet = false;
         for($i = 0; $i < self::HTTP_RETRY_TIMES; $i++){
-            $retString = $this->_request($param);
-            if($retString){
+            $oriRet = $this->_request($param);
+            if($oriRet){
                 break;
             }
         }
-        if(is_object($retString) && isInstanceOf($retString, 'GuzzleException')){
-            throw new RequestException("Request AllInPay failed.//{$retString->getLine()}//{$retString->getMessage()}");
+        if(is_object($oriRet) && isInstanceOf($oriRet, 'GuzzleException')){
+            throw new RequestException("Request AllInPay failed.//{$oriRet->getLine()}//{$oriRet->getMessage()}");
         }
+        $retString = trim($oriRet['ret']->getBody()->getContents());
+        $retStat = $oriRet['stat'];
 
         //========== 验证签名 ==========
         $ret = json_decode($retString, true);
@@ -122,6 +127,16 @@ class Client extends BaseClient
             throw new ResponseException($ret['message'], intval($ret['errorCode']));
         }
         $ret = json_decode($signedValue, true);
+        $this->app['logger']->info('', [
+            'REQUEST' => $param,
+            'RESPONSE' => $ret,
+            'STAT' => [
+                'ERROR_DATA' => $retStat->getHandlerErrorData(),
+                'EFFECTIVE_URI' => $retStat->getHandlerErrorData(),
+                'TRANSFER_TIME' => $retStat->getTransferTime(),
+                'STATS' => $retStat->getHandlerStats(),
+            ]
+        ]);
         return $res->buildResponse($ret);
     }
 
@@ -173,11 +188,16 @@ class Client extends BaseClient
      */
     private function _request(array $param)
     {
+        $stat = null;
         try {
             $ret = parent::post('', [
-                'form_params' => $param
+                RequestOptions::FORM_PARAMS => $param,
+                RequestOptions::TIMEOUT => $this->httpConfig['timeout'] ?? 60,
+                RequestOptions::ON_STATS => function (TransferStats $stats) use (&$stat) {
+                    $stat = $stats;
+                }
             ]);
-            return trim($ret->getBody()->getContents());
+            return compact('ret', 'stat');
         } catch (GuzzleException $e) {
             return false;
         }

@@ -16,11 +16,12 @@ use Ramsey\Uuid\Uuid;
 require __DIR__ . '/../../vendor/autoload.php';
 $config = require __DIR__ . '/../config.example.php';
 
-$app = new EasyAllInPay\Application($config);
-$member = $app['member'];
-
-$createMemberRequest = new CreateMember();
 try {
+    $app = new EasyAllInPay\Application($config);
+    $member = $app['member'];
+
+    $createMemberRequest = new CreateMember();
+
     $createMemberRequest
         ->setBizUserId(Uuid::uuid1()) //商户用户ID 必填
         ->setMemberType(FieldMapping::MEMBER_TYPE_PERSONAL) //会员类型 必填
